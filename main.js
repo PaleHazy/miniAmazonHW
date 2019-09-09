@@ -17,46 +17,66 @@ function addItem(name, dept, price, qty) {
   connection.query(
     `INSERT INTO product_list (product_name, dept_name, price, quantity)
       VALUES ('${name}', '${dept}', ${price}, ${qty});`,
-    (err, res, fields) => {
-    }
+    (err, res, fields) => {}
   );
 }
-
+function getDate() {
+  let date = new Date();
+  let dateCat = `${date.getFullYear()}-${date.getMonth() +
+    1}-${date.getDate()}`;
+  let timeCat = `${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+  let whenArr = [dateCat, timeCat];
+  return whenArr;
+}
 
 function getQuery(callback) {
   connection.query(`select * from product_list`, function(err, res, fields) {
     let allProductNames = res.map(item => item.product_name);
-    let allProductPrices = res.map(item => item.price)
-      let allProductsQuantities = res.map(item => item.quantity)
+    let allProductPrices = res.map(item => item.price);
+    let allProductsQuantities = res.map(item => item.quantity);
     callback(allProductNames, allProductPrices, allProductsQuantities);
   });
 }
 
-function sellQuery(callback, totalSale, updatedInventory, productName, quantityOrdered) {
-    let oldStock = updatedInventory + quantityOrdered;
+function sellQuery(
+  callback,
+  totalSale,
+  updatedInventory,
+  productName,
+  quantityOrdered
+) {
+  let oldStock = updatedInventory + quantityOrdered;
+  let d_t = getDate();
+  let date = d_t[0];
+  let time = d_t[1];
 
-    connection.query(`INSERT INTO da_bank_statements (transaction_amount, transaction_item, old_item_stock, transaction_quantity, updated_stock) VALUES (${totalSale},'${productName}', ${oldStock}, ${quantityOrdered}, ${updatedInventory})`)
-    callback(updatedInventory, productName)
+  connection.query(
+    `INSERT INTO da_bank_statements (transaction_amount, transaction_date, transaction_time, transaction_item, old_item_stock, transaction_quantity, updated_stock) VALUES (${totalSale}, '${date}', '${time}', '${productName}', ${oldStock}, ${quantityOrdered}, ${updatedInventory})`
+  );
+
+  callback(updatedInventory, productName);
 }
-function handleSale(inventory, proName){
-    let date = new Date();
-    connection.query(`UPDATE product_list SET quantity=${inventory} WHERE product_name='${proName}'`)
-    connection.query(``)
-    inquirer.prompt([
-        {
-            type: 'list',
-            name:'again',
-            message: 'Thank you for shopping with us, would you like to buy something else? or exit?',
-            choices: ['BuySomething', "Exit"]
-        }
-    ]).then(answer => {
-        if (answer.again === 'BuySomething'){
-            getQuery(buyItemsPrompt);
-        }
-        else {
-    connection.end()
-        }
-    })
+function handleSale(inventory, proName) {
+  connection.query(
+    `UPDATE product_list SET quantity=${inventory} WHERE product_name='${proName}'`
+  );
+  inquirer
+    .prompt([
+      {
+        type: 'list',
+        name: 'again',
+        message:
+          'Thank you for shopping with us, would you like to buy something else? or exit?',
+        choices: ['BuySomething', 'Exit']
+      }
+    ])
+    .then(answer => {
+      if (answer.again === 'BuySomething') {
+        getQuery(buyItemsPrompt);
+      } else {
+        connection.end();
+      }
+    });
 }
 
 /**
@@ -64,98 +84,111 @@ function handleSale(inventory, proName){
  * @param {array} itemNamesList
  */
 function buyItemsPrompt(n, p, q) {
-    let itemNameArray = n;
-    let itemPriceArray = p;
-    let itemQTArray = q;
-    inquirer.prompt([{
+  let itemNameArray = n;
+  let itemPriceArray = p;
+  let itemQTArray = q;
+  inquirer
+    .prompt([
+      {
         type: 'list',
         name: 'item',
         message: 'What item would you like to purchase today kind human? ',
         choices: itemNameArray
-
-    }]).then((answer) => {
-        let nameOfProduct = answer.item
-            let index = itemNameArray.indexOf(answer.item);
-        let price = itemPriceArray[index];
-        inquirer.prompt([{
-            type: "list",
+      }
+    ])
+    .then(answer => {
+      let nameOfProduct = answer.item;
+      let index = itemNameArray.indexOf(answer.item);
+      let price = itemPriceArray[index];
+      inquirer
+        .prompt([
+          {
+            type: 'list',
             name: 'buyItem',
             message: `would you like to purchase item ${answer.item}? it is $${price} for one of 'em`,
             choices: ['yes', 'no']
-        }
-
-
-        ]).then(answer => {
-            if(answer.buyItem === 'yes'){
-               inquirer.prompt([
-                   {
-                       type: 'number',
-                       name: 'quantity',
-                       message: `how many? we have ${itemQTArray[index]} in the back ;)`,
-                       default: 1
-
-                   }
-
-               ]).then(answer => {
-                   let quant = answer.quantity;
-                   let totalBill = quant * price;
-                   let newInventoryAmount = itemQTArray[index] - quant
-                   if(answer.quantity > itemQTArray[index]){
-                       inquirer.prompt([
-                           {
-                               type: 'list',
-                               choices: ['Go Back', 'Buy Max Amount'],
-                               name: 'bigOrder',
-                               message: `i'm so sorry but we only have ${itemQTArray[index]} items in stock would you like to buy the max amount $${itemQTArray[index]*price}? or go back?`
-                           }
-                       ]).then(answer => {
-                           if(answer.bigOrder === 'Buy Max Amount'){
-                               quant = itemQTArray[index]
-                               newInventoryAmount = 0;
-                               sellQuery(handleSale, totalBill, newInventoryAmount, nameOfProduct, quant )
-
-                           }
-                       })
-
-
-                   }
-                   else{
-
-                       inquirer.prompt([
-                           {
-                               type: "list",
-                               name: 'purchaseConfirmation',
-                               message: `ok? if you are not sure you can always go back your total is ${totalBill}$`,
-                               choices: ['buy', 'go back']
-                           }
-                       ]).then(answer => {
-                           if(answer.purchaseConfirmation === 'buy'){
-
-                               console.log('thank you so much for your purchase we greatly appreciate your commitment to our cause :)')
-                               console.log('You were billed :', totalBill + '$')
-                               console.log('for', nameOfProduct)
-                               sellQuery(handleSale, totalBill, newInventoryAmount, nameOfProduct, quant )
-
-
-                           }
-                           else{getQuery(buyItemsPrompt)}
-                       })
-                   }
-
-               })
-
-            }
-            else{
-                getQuery(buyItemsPrompt);
-
-            }
-        })
+          }
+        ])
+        .then(answer => {
+          if (answer.buyItem === 'yes') {
+            inquirer
+              .prompt([
+                {
+                  type: 'number',
+                  name: 'quantity',
+                  message: `how many? we have ${itemQTArray[index]} in the back ;)`,
+                  default: 1
+                }
+              ])
+              .then(answer => {
+                let quant = answer.quantity;
+                let totalBill = quant * price;
+                let newInventoryAmount = itemQTArray[index] - quant;
+                if (answer.quantity > itemQTArray[index]) {
+                  inquirer
+                    .prompt([
+                      {
+                        type: 'list',
+                        choices: ['Go Back', 'Buy Max Amount'],
+                        name: 'bigOrder',
+                        message: `i'm so sorry but we only have ${
+                          itemQTArray[index]
+                        } items in stock would you like to buy the max amount $${itemQTArray[
+                          index
+                        ] * price}? or go back?`
+                      }
+                    ])
+                    .then(answer => {
+                      if (answer.bigOrder === 'Buy Max Amount') {
+                        quant = itemQTArray[index];
+                        newInventoryAmount = 0;
+                        sellQuery(
+                          handleSale,
+                          totalBill,
+                          newInventoryAmount,
+                          nameOfProduct,
+                          quant
+                        );
+                      }
+                    });
+                } else {
+                  inquirer
+                    .prompt([
+                      {
+                        type: 'list',
+                        name: 'purchaseConfirmation',
+                        message: `ok? if you are not sure you can always go back your total is ${totalBill}$`,
+                        choices: ['buy', 'go back']
+                      }
+                    ])
+                    .then(answer => {
+                      if (answer.purchaseConfirmation === 'buy') {
+                        console.log(
+                          'thank you so much for your purchase we greatly appreciate your commitment to our cause :)'
+                        );
+                        console.log('You were billed :', totalBill + '$');
+                        console.log('for', nameOfProduct);
+                        sellQuery(
+                          handleSale,
+                          totalBill,
+                          newInventoryAmount,
+                          nameOfProduct,
+                          quant
+                        );
+                      } else {
+                        getQuery(buyItemsPrompt);
+                      }
+                    });
+                }
+              });
+          } else {
+            getQuery(buyItemsPrompt);
+          }
+        });
     });
-
 }
 
 getQuery(buyItemsPrompt);
-
 
 // addItem('Dog Food', 'Pet_Food', 17.99, 2000);
 // addItem('Bananas', 'Food', .87, 1500);
