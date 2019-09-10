@@ -149,6 +149,8 @@ function buyItemsPrompt(n, p, q) {
                           nameOfProduct,
                           quant
                         );
+                      } else {
+                        getQuery(buyItemsPrompt);
                       }
                     });
                 } else {
