@@ -121,6 +121,7 @@ function buyItemsPrompt(n, p, q) {
                 }
               ])
               .then(answer => {
+                console.log("answer:", answer);
                 let quant = answer.quantity;
                 let totalBill = quant * price;
                 let newInventoryAmount = itemQTArray[index] - quant;
@@ -184,7 +185,7 @@ function buyItemsPrompt(n, p, q) {
                 }
               });
           } else {
-            getQuery(buyItemsPrompt);
+            getQuery(buyItemsPrompt); //restart
           }
         });
     });
